@@ -141,6 +141,100 @@
       letter-spacing: 1px;
     }
 
+    #mobileControls {
+      position: absolute;
+      bottom: 12px;
+      left: 12px;
+      width: auto;
+      display: none;
+      gap: 10px;
+      z-index: 12;
+      pointer-events: auto;
+    }
+
+    .touch-pad {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      justify-items: center;
+      pointer-events: auto;
+    }
+
+    .touch-btn {
+      width: 62px;
+      height: 62px;
+      border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.18);
+      background: rgba(15, 23, 42, 0.92);
+      color: #d1fae5;
+      font-size: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      touch-action: none;
+      cursor: pointer;
+      user-select: none;
+      transition: transform 0.12s ease, background 0.12s ease, border-color 0.12s ease;
+    }
+
+    .touch-btn.active,
+    .touch-btn:active {
+      transform: scale(0.96);
+      background: rgba(74, 222, 128, 0.24);
+      border-color: #4ade80;
+      color: #f8fafc;
+    }
+
+    .touch-label {
+      grid-column: 1 / -1;
+      text-align: center;
+      font-size: 8px;
+      color: rgba(255,255,255,0.7);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      pointer-events: none;
+    }
+
+    @media (max-width: 960px) {
+      body {
+        padding: 8px;
+      }
+      #gameWrapper {
+        width: min(100%, 900px);
+        height: auto;
+      }
+      #gameCanvas {
+        width: 100%;
+        height: auto;
+      }
+      #controlsHint {
+        font-size: 8px;
+      }
+      #phaseBadge, #waveHint {
+        font-size: 8px;
+      }
+      #mobileControls {
+        display: grid;
+      }
+    }
+
+    @media (max-width: 600px) {
+      #gameWrapper {
+        width: 100%;
+      }
+      #mobileControls {
+        width: auto;
+        left: 8px;
+        bottom: 8px;
+        gap: 8px;
+      }
+      .touch-btn {
+        width: 56px;
+        height: 56px;
+        font-size: 18px;
+      }
+    }
+
     /* ===== TRIVIA OVERLAY ===== */
     #triviaOverlay {
       display: none;
@@ -343,6 +437,16 @@
   <!-- Gợi ý điều khiển -->
   <div id="controlsHint">WASD / ↑↓←→ Di chuyển &nbsp;|&nbsp; Tránh chiêu boss 5 đợt trước khi chạm</div>
   <div id="waveHint">Né 0/5 đợt bắn trước khi chạm Boss</div>
+
+  <div id="mobileControls">
+    <div class="touch-pad">
+      <button type="button" class="touch-btn" data-key="ArrowUp">↑</button>
+      <button type="button" class="touch-btn" data-key="ArrowLeft">←</button>
+      <button type="button" class="touch-btn" data-key="ArrowRight">→</button>
+      <button type="button" class="touch-btn" data-key="ArrowDown">↓</button>
+      <div class="touch-label">Chạm giữ để di chuyển</div>
+    </div>
+  </div>
 
   <!-- Màn hình bắt đầu -->
   <div id="startScreen">
@@ -1891,10 +1995,32 @@ function stopBossMusic() {
   if (_bossMusicAudio) { _bossMusicAudio.pause(); _bossMusicAudio.currentTime = 0; _bossMusicAudio = null; }
 }
 
+function setupMobileControls() {
+  const buttons = document.querySelectorAll('.touch-btn');
+  buttons.forEach(btn => {
+    const key = btn.dataset.key;
+    const setDown = (active) => {
+      if (!game) return;
+      game.keys[key] = active;
+      btn.classList.toggle('active', active);
+    };
+    const onPress = (event) => { event.preventDefault(); setDown(true); };
+    const onRelease = (event) => { event.preventDefault(); setDown(false); };
+
+    btn.addEventListener('touchstart', onPress, { passive: false });
+    btn.addEventListener('touchend', onRelease);
+    btn.addEventListener('touchcancel', onRelease);
+    btn.addEventListener('mousedown', onPress);
+    btn.addEventListener('mouseup', onRelease);
+    btn.addEventListener('mouseleave', onRelease);
+  });
+}
+
 // =================================================================
 // KHỞI CHẠY
 // =================================================================
 const game = new Game();
+window.addEventListener('load', setupMobileControls);
 </script>
 </body>
 </html>

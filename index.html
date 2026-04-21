@@ -3,10 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Chiến Binh Rừng Xanh vs Boss Rác Thải</title>
+  <title>Chiến Binh Rừng Xanh - Multiplayer Battle</title>
 
   <!-- Font pixel art -->
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+
+  <!-- Firebase SDK (compat version - works with old script syntax) -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database-compat.js"></script>
 
   <style>
     /* ===== RESET & BASE ===== */
@@ -390,6 +394,33 @@
 
     #startTitle  { font-size: 11px; color: #4ade80; text-shadow: 0 0 20px #22c55e; letter-spacing: 2px; text-align: center; line-height: 2.2; }
     #startSub    { font-size: 7px; color: #86efac; letter-spacing: 1px; }
+
+    .start-form {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      background: rgba(20, 50, 20, 0.8);
+      border: 2px solid #4ade80;
+      padding: 20px;
+      border-radius: 4px;
+    }
+
+    .start-form label {
+      font-size: 7px;
+      color: #86efac;
+      letter-spacing: 1px;
+    }
+
+    .start-form input {
+      padding: 10px;
+      background: #0a1a0a;
+      border: 1px solid #4ade80;
+      border-radius: 2px;
+      color: #f0fdf4;
+      font-family: inherit;
+      font-size: 8px;
+    }
+
     #startGuide  { font-size: 6.5px; color: #6b7280; line-height: 2.4; text-align: center; margin: 6px 0; }
     #startBtn {
       padding: 13px 30px;
@@ -409,15 +440,95 @@
       0%, 100% { box-shadow: 0 0 0 0 rgba(74,222,128,0.4); }
       50%       { box-shadow: 0 0 0 8px rgba(74,222,128,0); }
     }
+
+    /* ===== LEADERBOARD ===== */
+    .leaderboard-container {
+      display: flex;
+      gap: 20px;
+      width: 100%;
+      max-width: 1400px;
+      padding: 10px;
+      justify-content: center;
+    }
+
+    #leaderboard {
+      width: 300px;
+      background: rgba(20, 50, 20, 0.6);
+      border: 2px solid #4ade80;
+      border-radius: 4px;
+      padding: 12px;
+      height: fit-content;
+      max-height: 500px;
+      overflow-y: auto;
+    }
+
+    .lb-title {
+      font-size: 8px;
+      color: #4ade80;
+      text-align: center;
+      margin-bottom: 10px;
+      letter-spacing: 1px;
+      text-shadow: 0 0 8px #22c55e;
+      border-bottom: 1px solid #4ade80;
+      padding-bottom: 8px;
+    }
+
+    .lb-entry {
+      font-size: 6px;
+      color: #d1fae5;
+      padding: 8px;
+      margin-bottom: 6px;
+      background: rgba(10, 15, 10, 0.6);
+      border-radius: 2px;
+      border-left: 3px solid #4ade80;
+      transition: background 0.3s;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .lb-entry.current-player {
+      background: rgba(74, 222, 128, 0.2);
+      border-left-color: #fbbf24;
+    }
+
+    .lb-rank {
+      font-weight: bold;
+      color: #fbbf24;
+      min-width: 20px;
+    }
+
+    .lb-name {
+      flex: 1;
+      margin-left: 8px;
+    }
+
+    .lb-score {
+      color: #86efac;
+      text-align: right;
+      min-width: 60px;
+    }
+
+    @media (max-width: 1200px) {
+      .leaderboard-container {
+        flex-direction: column;
+        align-items: center;
+      }
+      #leaderboard {
+        width: 100%;
+        max-height: 200px;
+      }
+    }
   </style>
 </head>
 <body>
 
 <div id="gameTitle">⚔️ CHIẾN BINH RỪNG XANH vs ☠️ BOSS RÁC THẢI</div>
 
-<div id="gameWrapper">
-  <!-- Canvas chính -->
-  <canvas id="gameCanvas" width="900" height="500"></canvas>
+<div class="leaderboard-container">
+  <div id="gameWrapper">
+    <!-- Canvas chính -->
+    <canvas id="gameCanvas" width="900" height="500"></canvas>
 
   <!-- HUD: Thanh máu -->
   <div id="hud">
@@ -477,6 +588,13 @@
     <div id="endTitle"></div>
     <div id="endMsg"></div>
     <button id="restartBtn" onclick="game.restart()">🔄 CHƠI LẠI</button>
+  </div>
+  </div>
+
+  <!-- LEADERBOARD -->
+  <div id="leaderboard">
+    <div class="lb-title">🏆 BẢNG XẾP HẠNG</div>
+    <div id="leaderboardList"></div>
   </div>
 </div>
 
@@ -1760,6 +1878,7 @@ class Game {
     this.bossCooldown = 0;
     this.epicPlayed   = false;
     this.bg.scroll    = 0;
+    this.gameStartTime = Date.now(); // Lưu thời gian bắt đầu
     playBossMusic(BOSS_PHASE1_MUSIC_URL);
 
     this.$endScr.style.display = 'none';
@@ -1930,25 +2049,54 @@ class Game {
   // Màn hình chiến thắng
   _win() {
     this.state = 'win';
+    stopBossMusic();
+    
+    // Tính điểm
+    const timePlayed = (Date.now() - this.gameStartTime) / 1000;
+    const healthBonus = Math.max(0, this.player.hp) * 10;
+    const timeBonus = Math.max(0, 500 - timePlayed * 3);
+    const finalScore = Math.round(healthBonus + timeBonus + 1000);
+    
+    // Hỏi tên người chơi
+    const playerName = prompt('🏆 Nhập tên của bạn để lưu điểm cao:') || 'Champion';
+    
+    // Lưu vào leaderboard
+    if (window.leaderboard) {
+      window.leaderboard.addScore(playerName, finalScore);
+    }
+    
     this.$endScr.className = 'victory';
     this.$endTitle.style.color = '#4ade80';
     this.$endTitle.textContent = '🏆 CHIẾN THẮNG!';
-    this.$endMsg.textContent = 'Rừng xanh đã được bảo vệ!\nBoss Rác Thải đã bị đánh bại nhờ tri thức và lòng dũng cảm!';
+    this.$endMsg.textContent = `Rừng xanh đã được bảo vệ!\nBoss Rác Thải đã bị đánh bại nhờ tri thức và lòng dũng cảm!\n\n⏱ Thời gian: ${timePlayed.toFixed(1)}s\n❤️ Máu còn: ${Math.max(0, this.player.hp)}\n⭐ Điểm số: ${finalScore}`;
     this.$restBtn.style.color = '#4ade80';
     this.$endScr.style.display = 'flex';
-    stopBossMusic();
   }
 
   // Màn hình thua
   _defeat() {
     this.state = 'defeat';
+    stopBossMusic();
+    
+    // Tính điểm
+    const timePlayed = (Date.now() - this.gameStartTime) / 1000;
+    const bossHealthDmg = (1 - this.boss.hp / this.boss.maxHp) * 500;
+    const finalScore = Math.round(bossHealthDmg + Math.max(0, 300 - timePlayed));
+    
+    // Hỏi tên người chơi
+    const playerName = prompt('💀 Nhập tên của bạn để lưu điểm:') || 'Warrior';
+    
+    // Lưu vào leaderboard
+    if (window.leaderboard) {
+      window.leaderboard.addScore(playerName, finalScore);
+    }
+    
     this.$endScr.className = 'defeat';
     this.$endTitle.style.color = '#f87171';
     this.$endTitle.textContent = '💀 THẤT BẠI!';
-    this.$endMsg.textContent = 'Chiến Binh đã ngã xuống trước sức mạnh ô nhiễm...\nHãy đứng dậy, học hỏi và chiến đấu tiếp!';
+    this.$endMsg.textContent = `Chiến Binh đã ngã xuống trước sức mạnh ô nhiễm...\nHãy đứng dậy, học hỏi và chiến đấu tiếp!\n\n⏱ Thời gian: ${timePlayed.toFixed(1)}s\n⭐ Điểm số: ${finalScore}`;
     this.$restBtn.style.color = '#f87171';
     this.$endScr.style.display = 'flex';
-    stopBossMusic();
   }
 
   // Input bàn phím
@@ -2017,8 +2165,70 @@ function setupMobileControls() {
 }
 
 // =================================================================
+// LEADERBOARD: Quản lý bảng xếp hạng
+// =================================================================
+class Leaderboard {
+  constructor() {
+    this.data = this._loadFromStorage();
+    this.render();
+  }
+
+  _loadFromStorage() {
+    const stored = localStorage.getItem('gameLeaderboard');
+    return stored ? JSON.parse(stored) : [];
+  }
+
+  _saveToStorage() {
+    localStorage.setItem('gameLeaderboard', JSON.stringify(this.data));
+  }
+
+  addScore(playerName, score) {
+    this.data.push({
+      name: playerName || 'Anonymous',
+      score: Math.round(score),
+      time: new Date().toLocaleString('vi-VN')
+    });
+    // Sắp xếp theo điểm giảm dần
+    this.data.sort((a, b) => b.score - a.score);
+    // Giữ tối đa 50 bản ghi
+    this.data = this.data.slice(0, 50);
+    this._saveToStorage();
+    this.render();
+  }
+
+  render() {
+    const listEl = document.getElementById('leaderboardList');
+    if (!listEl) return;
+
+    listEl.innerHTML = '';
+    this.data.forEach((entry, idx) => {
+      const entryEl = document.createElement('div');
+      entryEl.className = 'lb-entry';
+
+      const rankEl = document.createElement('div');
+      rankEl.className = 'lb-rank';
+      rankEl.textContent = ['🥇', '🥈', '🥉', ...Array(47).fill('')][idx];
+
+      const nameEl = document.createElement('div');
+      nameEl.className = 'lb-name';
+      nameEl.textContent = entry.name;
+
+      const scoreEl = document.createElement('div');
+      scoreEl.className = 'lb-score';
+      scoreEl.textContent = entry.score.toLocaleString('vi-VN');
+
+      entryEl.appendChild(rankEl);
+      entryEl.appendChild(nameEl);
+      entryEl.appendChild(scoreEl);
+      listEl.appendChild(entryEl);
+    });
+  }
+}
+
+// =================================================================
 // KHỞI CHẠY
 // =================================================================
+const leaderboard = new Leaderboard();
 const game = new Game();
 window.addEventListener('load', setupMobileControls);
 </script>

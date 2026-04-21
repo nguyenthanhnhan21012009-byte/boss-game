@@ -147,62 +147,58 @@
 
     #mobileControls {
       position: absolute;
-      bottom: 12px;
-      left: 12px;
-      width: auto;
+      bottom: 14px;
+      left: 14px;
       display: none;
-      gap: 10px;
       z-index: 12;
       pointer-events: auto;
     }
 
+    /* D-pad dạng chữ thập 3x3 */
     .touch-pad {
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 10px;
-      justify-items: center;
+      grid-template-columns: repeat(3, 62px);
+      grid-template-rows: repeat(3, 62px);
+      gap: 5px;
       pointer-events: auto;
     }
 
+    /* Vị trí từng nút trong lưới 3x3 */
+    .touch-btn[data-key="ArrowUp"]    { grid-column: 2; grid-row: 1; }
+    .touch-btn[data-key="ArrowLeft"]  { grid-column: 1; grid-row: 2; }
+    .touch-btn[data-key="ArrowRight"] { grid-column: 3; grid-row: 2; }
+    .touch-btn[data-key="ArrowDown"]  { grid-column: 2; grid-row: 3; }
+
     .touch-btn {
-      width: 80px;
-      height: 80px;
-      border-radius: 50%;
-      border: 2px solid rgba(255,255,255,0.18);
-      background: rgba(15, 23, 42, 0.92);
-      color: #d1fae5;
-      font-size: 28px;
+      width: 62px;
+      height: 62px;
+      border-radius: 14px;
+      border: 2px solid rgba(74, 222, 128, 0.35);
+      background: rgba(5, 15, 5, 0.78);
+      color: #a3e4b5;
+      font-size: 24px;
       display: flex;
       align-items: center;
       justify-content: center;
       touch-action: none;
       cursor: pointer;
       user-select: none;
-      transition: transform 0.12s ease, background 0.12s ease, border-color 0.12s ease;
+      backdrop-filter: blur(4px);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.07);
+      transition: transform 0.08s ease, background 0.08s ease, border-color 0.08s ease;
     }
 
     .touch-btn.active,
     .touch-btn:active {
-      transform: scale(0.96);
-      background: rgba(74, 222, 128, 0.24);
+      transform: scale(0.91);
+      background: rgba(74, 222, 128, 0.28);
       border-color: #4ade80;
-      color: #f8fafc;
-    }
-
-    .touch-label {
-      grid-column: 1 / -1;
-      text-align: center;
-      font-size: 8px;
-      color: rgba(255,255,255,0.7);
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      pointer-events: none;
+      color: #ffffff;
+      box-shadow: 0 0 12px rgba(74,222,128,0.4), inset 0 1px 0 rgba(255,255,255,0.1);
     }
 
     @media (max-width: 960px) {
-      body {
-        padding: 8px;
-      }
+      body { padding: 8px; }
       #gameWrapper {
         width: min(100%, 900px);
         height: auto;
@@ -211,31 +207,41 @@
         width: 100%;
         height: auto;
       }
-      #controlsHint {
-        font-size: 8px;
-      }
-      #phaseBadge, #waveHint {
-        font-size: 8px;
-      }
-      #mobileControls {
-        display: grid;
-      }
+      #controlsHint { font-size: 8px; }
+      #phaseBadge, #waveHint { font-size: 8px; }
+      #mobileControls { display: block; }
     }
 
     @media (max-width: 600px) {
-      #gameWrapper {
-        width: 100%;
-      }
+      #gameWrapper { width: 100%; }
       #mobileControls {
-        width: auto;
-        left: 8px;
-        bottom: 8px;
-        gap: 8px;
+        bottom: 10px;
+        left: 10px;
+      }
+      .touch-pad {
+        grid-template-columns: repeat(3, 58px);
+        grid-template-rows: repeat(3, 58px);
+        gap: 4px;
       }
       .touch-btn {
-        width: 72px;
-        height: 72px;
-        font-size: 24px;
+        width: 58px;
+        height: 58px;
+        font-size: 22px;
+        border-radius: 12px;
+      }
+    }
+
+    @media (max-width: 400px) {
+      .touch-pad {
+        grid-template-columns: repeat(3, 52px);
+        grid-template-rows: repeat(3, 52px);
+        gap: 4px;
+      }
+      .touch-btn {
+        width: 52px;
+        height: 52px;
+        font-size: 20px;
+        border-radius: 10px;
       }
     }
 
@@ -555,7 +561,6 @@
       <button type="button" class="touch-btn" data-key="ArrowLeft">←</button>
       <button type="button" class="touch-btn" data-key="ArrowRight">→</button>
       <button type="button" class="touch-btn" data-key="ArrowDown">↓</button>
-      <div class="touch-label">Chạm giữ để di chuyển</div>
     </div>
   </div>
 
@@ -569,6 +574,10 @@
       🤜 Lao vào Boss để thi đấu trí tuệ<br>
       🌿 Trả lời đúng = Boss mất máu lớn!<br>
       ☠️ Trả lời sai = Bạn bị phản đòn!
+    </div>
+    <div class="start-form">
+      <label for="playerNameInput">👤 NHẬP TÊN CHIẾN BINH:</label>
+      <input type="text" id="playerNameInput" maxlength="20" placeholder="Tên của bạn..." autocomplete="off" />
     </div>
     <button id="startBtn" onclick="game.start()">▶ BẮT ĐẦU CHIẾN ĐẤU</button>
   </div>
@@ -1891,6 +1900,8 @@ class Game {
 
   // Bắt đầu game (được gọi từ nút Start)
   start() {
+    const nameInput = document.getElementById('playerNameInput');
+    this.playerName = (nameInput && nameInput.value.trim()) ? nameInput.value.trim() : 'Chiến Binh';
     this.$startScr.style.display = 'none';
     this._init();
     this.lastTime = performance.now();
@@ -2057,10 +2068,8 @@ class Game {
     const timeBonus = Math.max(0, 500 - timePlayed * 3);
     const finalScore = Math.round(healthBonus + timeBonus + 1000);
     
-    // Hỏi tên người chơi
-    const playerName = prompt('🏆 Nhập tên của bạn để lưu điểm cao:') || 'Champion';
-    
     // Lưu vào leaderboard
+    const playerName = this.playerName || 'Champion';
     if (window.leaderboard) {
       window.leaderboard.addScore(playerName, finalScore);
     }
@@ -2083,10 +2092,8 @@ class Game {
     const bossHealthDmg = (1 - this.boss.hp / this.boss.maxHp) * 500;
     const finalScore = Math.round(bossHealthDmg + Math.max(0, 300 - timePlayed));
     
-    // Hỏi tên người chơi
-    const playerName = prompt('💀 Nhập tên của bạn để lưu điểm:') || 'Warrior';
-    
     // Lưu vào leaderboard
+    const playerName = this.playerName || 'Warrior';
     if (window.leaderboard) {
       window.leaderboard.addScore(playerName, finalScore);
     }
@@ -2228,7 +2235,7 @@ class Leaderboard {
 // =================================================================
 // KHỞI CHẠY
 // =================================================================
-const leaderboard = new Leaderboard();
+window.leaderboard = new Leaderboard();
 const game = new Game();
 window.addEventListener('load', setupMobileControls);
 </script>
